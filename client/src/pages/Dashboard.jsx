@@ -1,3 +1,4 @@
+import ChatWindow from "../components/dashboard/ChatWindow";
 import ChatInput from "../components/dashboard/ChatInput";
 import Welcome from "../components/dashboard/Welcome";
 import Sidebar from "../components/dashboard/Sidebar";
@@ -13,7 +14,7 @@ function Dashboard() {
 
         <div className="flex-1 flex flex-col">
           <div className="flex-1">
-            <Welcome />
+            <ChatWindow />
           </div>
 
           <ChatInput />
