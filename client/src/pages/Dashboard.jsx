@@ -1,26 +1,21 @@
+import DashboardLayout from "../layouts/DashboardLayout";
+
 import ChatWindow from "../components/dashboard/ChatWindow";
 import ChatInput from "../components/dashboard/ChatInput";
-import Welcome from "../components/dashboard/Welcome";
-import Sidebar from "../components/dashboard/Sidebar";
-import Topbar from "../components/dashboard/Topbar";
 
 function Dashboard() {
   return (
-    <div className="flex h-screen bg-[#0B0B0F]">
-      <Sidebar />
+    <DashboardLayout>
+      <div className="flex flex-col h-full">
 
-      <div className="flex-1 flex flex-col">
-        <Topbar />
-
-        <div className="flex-1 flex flex-col">
-          <div className="flex-1">
-            <ChatWindow />
-          </div>
-
-          <ChatInput />
+        <div className="flex-1">
+          <ChatWindow />
         </div>
+
+        <ChatInput />
+
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
 
