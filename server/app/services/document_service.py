@@ -14,6 +14,7 @@ from app.services.embedding_service import (
     generate_single_embedding,
     generate_batch_embeddings,
     cosine_similarity,
+    get_gemini_client,
 )
 
 logger = logging.getLogger("novamind.documents")
