@@ -25,19 +25,34 @@ function ChatInput({
   useEffect(() => {
     const recognition = getSpeechRecognition();
     if (recognition) {
-      recognition.continuous = true;
-      recognition.interimResults = true;
+      // Disabling interimResults prevents duplicate partial text phrases from appending
+      recognition.continuous = false;
+      recognition.interimResults = false;
       recognition.lang = "en-US";
 
       recognition.onresult = (event) => {
         let transcript = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
+        for (let i = 0; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            transcript += event.results[i][0].transcript;
+          }
         }
-        if (transcript) {
+        if (transcript.trim()) {
           setText((prev) => {
-            const separator = prev && !prev.endsWith(" ") ? " " : "";
-            return prev + separator + transcript;
+            const cleanPrev = prev.trim();
+            const separator = cleanPrev ? " " : "";
+            const newText = cleanPrev + separator + transcript.trim();
+            // Auto adjust textarea height
+            setTimeout(() => {
+              if (textareaRef.current) {
+                textareaRef.current.style.height = "auto";
+                textareaRef.current.style.height = `${Math.min(
+                  textareaRef.current.scrollHeight,
+                  120
+                )}px`;
+              }
+            }, 50);
+            return newText;
           });
         }
       };
@@ -70,7 +85,9 @@ function ChatInput({
     }
 
     if (isListening) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {}
       setIsListening(false);
     } else {
       try {
@@ -78,6 +95,7 @@ function ChatInput({
         setIsListening(true);
       } catch (err) {
         console.warn("Recognition start error:", err);
+        setIsListening(false);
       }
     }
   };
