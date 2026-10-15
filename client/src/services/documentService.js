@@ -114,6 +114,23 @@ export const documentService = {
     const response = await api.post(`/documents/${id}/reindex`);
     return response.data;
   },
+
+  /**
+   * Compares two indexed documents and generates an academic comparative synthesis.
+   * @param {Object} params
+   * @param {string} params.document_id_a
+   * @param {string} params.document_id_b
+   * @param {string} [params.focus]
+   * @returns {Promise<Object>}
+   */
+  async compareDocuments({ document_id_a, document_id_b, focus = "comprehensive" }) {
+    const response = await api.post("/documents/compare", {
+      document_id_a,
+      document_id_b,
+      focus,
+    });
+    return response.data;
+  },
 };
 
 

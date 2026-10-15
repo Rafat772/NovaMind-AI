@@ -5,8 +5,11 @@ import ChatInput from "../components/dashboard/ChatInput";
 import chatService from "../services/chatService";
 import documentService from "../services/documentService";
 import { Plus, History, Trash2, BookOpen, Sparkles, MessageSquare } from "lucide-react";
+import { useAuth } from "../context/useAuth";
+import ExportChatDropdown from "../components/dashboard/ExportChatDropdown";
 
 function Dashboard() {
+  const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
@@ -158,6 +161,13 @@ function Dashboard() {
 
           {/* Action buttons */}
           <div className="flex items-center gap-2">
+            {/* Export Dropdown */}
+            <ExportChatDropdown
+              sessionTitle={activeSessionTitle}
+              messages={messages}
+              user={user}
+            />
+
             {/* History Toggle */}
             <button
               type="button"

@@ -1,5 +1,6 @@
-import { useState, useRef } from "react";
-import { Send, Loader2, Sparkles, BookOpen, Layers } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Send, Loader2, Sparkles, BookOpen, Layers, Mic, MicOff } from "lucide-react";
+import { getSpeechRecognition } from "../../utils/speechUtils";
 
 const SUGGESTIONS = [
   "Summarize the core findings and conclusion",
@@ -16,7 +17,70 @@ function ChatInput({
   onSelectDocId,
 }) {
   const [text, setText] = useState("");
+  const [isListening, setIsListening] = useState(false);
   const textareaRef = useRef(null);
+  const recognitionRef = useRef(null);
+
+  // Initialize Speech Recognition
+  useEffect(() => {
+    const recognition = getSpeechRecognition();
+    if (recognition) {
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = "en-US";
+
+      recognition.onresult = (event) => {
+        let transcript = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        if (transcript) {
+          setText((prev) => {
+            const separator = prev && !prev.endsWith(" ") ? " " : "";
+            return prev + separator + transcript;
+          });
+        }
+      };
+
+      recognition.onerror = (e) => {
+        console.warn("Speech recognition error:", e);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {}
+      }
+    };
+  }, []);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      alert("Speech recognition is not supported in this browser. Please use Google Chrome or Edge.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (err) {
+        console.warn("Recognition start error:", err);
+      }
+    }
+  };
 
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
@@ -106,17 +170,37 @@ function ChatInput({
           className="flex-1 bg-transparent outline-none text-white text-sm placeholder:text-gray-500 resize-none max-h-32 py-1.5 leading-relaxed font-sans"
         />
 
-        <button
-          type="submit"
-          disabled={!text.trim() || isLoading}
-          className="ml-3 w-10 h-10 rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0 shadow-md shadow-purple-600/30 active:scale-95 cursor-pointer text-white"
-        >
-          {isLoading ? (
-            <Loader2 size={18} className="animate-spin text-white" />
-          ) : (
-            <Send size={16} />
-          )}
-        </button>
+        <div className="flex items-center gap-1.5 ml-2 shrink-0">
+          {/* Voice Dictation (STT) Button */}
+          <button
+            type="button"
+            onClick={toggleListening}
+            title={isListening ? "Listening... Click to stop dictation" : "Dictate with voice"}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer relative ${
+              isListening
+                ? "bg-red-500 text-white shadow-lg shadow-red-500/50 animate-pulse"
+                : "bg-[#1C1C28] text-gray-400 hover:text-purple-400 hover:bg-[#252536] border border-[#2D2D38]"
+            }`}
+          >
+            {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+            {isListening && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-400 rounded-full animate-ping"></span>
+            )}
+          </button>
+
+          {/* Send Button */}
+          <button
+            type="submit"
+            disabled={!text.trim() || isLoading}
+            className="w-10 h-10 rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0 shadow-md shadow-purple-600/30 active:scale-95 cursor-pointer text-white"
+          >
+            {isLoading ? (
+              <Loader2 size={18} className="animate-spin text-white" />
+            ) : (
+              <Send size={16} />
+            )}
+          </button>
+        </div>
       </form>
 
       <div className="flex items-center justify-between mt-2 text-[11px] text-gray-500 px-1">

@@ -68,3 +68,25 @@ class SemanticSearchResponse(BaseModel):
     total_results: int
     results: List[SearchResultItem]
 
+
+class DocumentCompareRequest(BaseModel):
+    document_id_a: str
+    document_id_b: str
+    focus: Optional[str] = "comprehensive"
+
+
+class DocumentSummaryMeta(BaseModel):
+    id: str
+    filename: str
+    file_type: str
+    page_count: int
+    chunk_count: int
+
+
+class DocumentCompareResponse(BaseModel):
+    document_a: DocumentSummaryMeta
+    document_b: DocumentSummaryMeta
+    focus: str
+    comparison_markdown: str
+    created_at: str
+

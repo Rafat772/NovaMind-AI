@@ -82,6 +82,11 @@ export function AuthProvider({ children }) {
     return data;
   };
 
+  const updateUser = (updatedUserData) => {
+    setUser(updatedUserData);
+    localStorage.setItem("novamind_user", JSON.stringify(updatedUserData));
+  };
+
   const value = {
     user,
     token,
@@ -90,6 +95,7 @@ export function AuthProvider({ children }) {
     login,
     register,
     googleLogin,
+    updateUser,
     logout,
   };
 

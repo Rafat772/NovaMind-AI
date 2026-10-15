@@ -27,6 +27,19 @@ export const authService = {
     const response = await api.post("/auth/google", { credential });
     return response.data;
   },
+
+  async updateProfile({ full_name, avatar_url }) {
+    const response = await api.put("/auth/profile", { full_name, avatar_url });
+    return response.data;
+  },
+
+  async changePassword({ current_password, new_password }) {
+    const response = await api.post("/auth/change-password", {
+      current_password,
+      new_password,
+    });
+    return response.data;
+  },
 };
 
 

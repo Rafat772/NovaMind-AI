@@ -3,12 +3,15 @@ import DashboardLayout from "../layouts/DashboardLayout";
 import UploadCard from "../components/documents/UploadCard";
 import SemanticSearchCard from "../components/documents/SemanticSearchCard";
 import DocumentList from "../components/documents/DocumentList";
+import DocumentCompareModal from "../components/documents/DocumentCompareModal";
 import documentService from "../services/documentService";
+import { Scale } from "lucide-react";
 
 function Documents() {
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isCompareOpen, setIsCompareOpen] = useState(false);
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -47,13 +50,26 @@ function Documents() {
       <div className="p-6 sm:p-10 max-w-7xl mx-auto">
         
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-2">
-            Knowledge Base Documents
-          </h1>
-          <p className="text-gray-400 text-sm sm:text-base">
-            Upload, inspect extracted chunks, and manage your AI-indexed literature.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-2">
+              Knowledge Base Documents
+            </h1>
+            <p className="text-gray-400 text-sm sm:text-base">
+              Upload, inspect extracted chunks, and manage your AI-indexed literature.
+            </p>
+          </div>
+
+          {documents && documents.length >= 2 && (
+            <button
+              type="button"
+              onClick={() => setIsCompareOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 transition-all shadow-lg shadow-purple-600/30 cursor-pointer active:scale-95 shrink-0 self-start sm:self-auto"
+            >
+              <Scale size={16} />
+              <span>Compare Documents</span>
+            </button>
+          )}
         </div>
 
         {/* Global Error Banner if initial fetch fails */}
@@ -82,6 +98,13 @@ function Documents() {
           isLoading={isLoading}
           onDelete={handleDelete}
           onRefresh={fetchDocuments}
+        />
+
+        {/* Document Comparison Modal */}
+        <DocumentCompareModal
+          isOpen={isCompareOpen}
+          onClose={() => setIsCompareOpen(false)}
+          documents={documents}
         />
 
       </div>

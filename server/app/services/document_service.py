@@ -441,3 +441,120 @@ async def reindex_document(doc_id: str, user_id: str) -> Optional[dict]:
 
     return format_doc_response(doc)
 
+
+async def compare_documents(
+    doc_id_a: str,
+    doc_id_b: str,
+    user_id: str,
+    focus: str = "comprehensive",
+) -> dict:
+    """
+    Performs comparative semantic synthesis between two indexed documents.
+    """
+    try:
+        oid_a = ObjectId(doc_id_a)
+        oid_b = ObjectId(doc_id_b)
+    except Exception:
+        raise ValueError("Invalid document ID format.")
+
+    doc_a = await db.documents.find_one({"_id": oid_a, "user_id": str(user_id)})
+    doc_b = await db.documents.find_one({"_id": oid_b, "user_id": str(user_id)})
+
+    if not doc_a or not doc_b:
+        raise ValueError("One or both documents could not be found.")
+
+    chunks_a = doc_a.get("chunks", [])
+    chunks_b = doc_b.get("chunks", [])
+
+    text_a = "\n\n".join([c["content"] for c in chunks_a[:4]])
+    text_b = "\n\n".join([c["content"] for c in chunks_b[:4]])
+
+    name_a = doc_a.get("filename", "Document A")
+    name_b = doc_b.get("filename", "Document B")
+
+    client = get_gemini_client()
+    markdown_result = ""
+
+    if client:
+        prompt = f"""You are NovaMind AI, an elite academic research assistant.
+Compare and contrast the following two indexed research documents with high analytical rigor.
+
+Document 1: {name_a}
+Excerpts:
+{text_a[:2500]}
+
+---
+
+Document 2: {name_b}
+Excerpts:
+{text_b[:2500]}
+
+Focus Aspect: {focus}
+
+Instructions:
+1. Format your response cleanly in GitHub Markdown.
+2. Structure your comparative analysis into:
+   - ## 🎯 Executive Comparison Overview
+   - ## 🔍 Core Distinct Themes & Methodological Contrasts
+   - ## 🤝 Common Ground & Shared Patterns
+   - ## 📊 Comparative Breakdown Table (Aspect | {name_a} | {name_b})
+   - ## 💡 Synthesis & Key Recommendations
+3. Keep the tone academic, crisp, and objective.
+"""
+        for model_name in ["gemini-flash-lite-latest", "gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-3.5-flash", "gemini-flash-latest"]:
+            try:
+                resp = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                )
+                if resp and resp.text:
+                    markdown_result = resp.text
+                    break
+            except Exception as e:
+                logger.warning(f"Compare model {model_name} failed: {e}")
+                continue
+
+    if not markdown_result:
+        markdown_result = f"""# Comparative Synthesis: {name_a} vs {name_b}
+
+## 🎯 Executive Comparison Overview
+* **Document A**: `{name_a}` ({doc_a.get('file_type', '').upper()} • {len(chunks_a)} chunks • {doc_a.get('page_count', 1)} pages)
+* **Document B**: `{name_b}` ({doc_b.get('file_type', '').upper()} • {len(chunks_b)} chunks • {doc_b.get('page_count', 1)} pages)
+
+## 🔍 Key Literature Focus
+* **{name_a}**: Contains key research excerpts regarding:
+> {chunks_a[0]['content'][:200] if chunks_a else "No excerpt available."}...
+
+* **{name_b}**: Highlights foundational aspects regarding:
+> {chunks_b[0]['content'][:200] if chunks_b else "No excerpt available."}...
+
+## 📊 Quick Contrast Table
+| Dimension | {name_a} | {name_b} |
+| :--- | :--- | :--- |
+| **Format** | {doc_a.get('file_type', '').upper()} | {doc_b.get('file_type', '').upper()} |
+| **Length** | {doc_a.get('page_count', 1)} pages | {doc_b.get('page_count', 1)} pages |
+| **Chunk Density** | {len(chunks_a)} passages | {len(chunks_b)} passages |
+
+*Note: For deeper multi-paragraph LLM comparative breakdown, ensure your Gemini API key is active.*
+"""
+
+    return {
+        "document_a": {
+            "id": str(doc_a["_id"]),
+            "filename": name_a,
+            "file_type": doc_a.get("file_type", "").upper(),
+            "page_count": doc_a.get("page_count", 1),
+            "chunk_count": len(chunks_a),
+        },
+        "document_b": {
+            "id": str(doc_b["_id"]),
+            "filename": name_b,
+            "file_type": doc_b.get("file_type", "").upper(),
+            "page_count": doc_b.get("page_count", 1),
+            "chunk_count": len(chunks_b),
+        },
+        "focus": focus,
+        "comparison_markdown": markdown_result,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+

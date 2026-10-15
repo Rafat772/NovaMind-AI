@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Sparkles, User, FileText, ChevronDown, ChevronUp, Copy, Check } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Sparkles, User, FileText, ChevronDown, ChevronUp, Copy, Check, Volume2, VolumeX } from "lucide-react";
+import { speakText, stopSpeech } from "../../utils/speechUtils";
 
 function renderFormattedContent(text) {
   if (!text) return null;
@@ -84,11 +85,32 @@ function ChatMessage({ role, message, content, citations = [] }) {
   const textContent = content || message || "";
   const [showCitations, setShowCitations] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // Stop speech if message unmounts
+  useEffect(() => {
+    return () => {
+      if (isPlaying) stopSpeech();
+    };
+  }, [isPlaying]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(textContent);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleToggleSpeech = () => {
+    if (isPlaying) {
+      stopSpeech();
+      setIsPlaying(false);
+    } else {
+      speakText(textContent, {
+        onStart: () => setIsPlaying(true),
+        onEnd: () => setIsPlaying(false),
+        onError: () => setIsPlaying(false),
+      });
+    }
   };
 
   return (
@@ -166,9 +188,10 @@ function ChatMessage({ role, message, content, citations = [] }) {
 
         </div>
 
-        {/* Copy button below assistant message */}
+        {/* Actions row below assistant message */}
         {!isUser && (
-          <div className="flex items-center gap-2 mt-1.5 ml-2 text-xs text-gray-500">
+          <div className="flex items-center gap-3 mt-1.5 ml-2 text-xs text-gray-500">
+            {/* Copy button */}
             <button
               type="button"
               onClick={handleCopy}
@@ -177,12 +200,44 @@ function ChatMessage({ role, message, content, citations = [] }) {
               {copied ? (
                 <>
                   <Check size={12} className="text-green-400" />
-                  <span className="text-green-400">Copied</span>
+                  <span className="text-green-400 font-medium">Copied</span>
                 </>
               ) : (
                 <>
                   <Copy size={12} />
-                  <span>Copy response</span>
+                  <span>Copy</span>
+                </>
+              )}
+            </button>
+
+            <span className="text-gray-700">•</span>
+
+            {/* Read Aloud / Audio Playback button */}
+            <button
+              type="button"
+              onClick={handleToggleSpeech}
+              title={isPlaying ? "Stop speech" : "Read aloud with text-to-speech"}
+              className={`flex items-center gap-1.5 transition-colors cursor-pointer ${
+                isPlaying
+                  ? "text-purple-400 font-semibold"
+                  : "hover:text-purple-400"
+              }`}
+            >
+              {isPlaying ? (
+                <>
+                  <VolumeX size={13} className="text-red-400" />
+                  <span className="text-purple-300">Stop</span>
+                  {/* Animated equalizer bars */}
+                  <span className="inline-flex items-center gap-0.5 ml-1">
+                    <span className="w-1 h-2 bg-purple-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                    <span className="w-1 h-3.5 bg-fuchsia-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                    <span className="w-1 h-2 bg-purple-400 rounded-full animate-bounce"></span>
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Volume2 size={13} />
+                  <span>Listen</span>
                 </>
               )}
             </button>

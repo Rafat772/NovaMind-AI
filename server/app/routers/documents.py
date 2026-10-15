@@ -13,6 +13,8 @@ from app.schemas.document import (
     SemanticSearchRequest,
     SearchResultItem,
     SemanticSearchResponse,
+    DocumentCompareRequest,
+    DocumentCompareResponse,
 )
 from app.services.document_service import (
     save_and_create_document,
@@ -24,6 +26,7 @@ from app.services.document_service import (
     format_doc_response,
     semantic_search_chunks,
     reindex_document,
+    compare_documents,
 )
 
 router = APIRouter(
@@ -217,4 +220,28 @@ async def reindex_single_document(
             detail="Document not found.",
         )
     return DocumentResponse(**doc)
+
+
+@router.post("/compare", response_model=DocumentCompareResponse)
+async def compare_documents_endpoint(
+    req: DocumentCompareRequest,
+    current_user: UserResponse = Depends(get_current_user),
+):
+    """
+    Compares two indexed documents and generates an academic comparative synthesis.
+    """
+    try:
+        return await compare_documents(
+            doc_id_a=req.document_id_a,
+            doc_id_b=req.document_id_b,
+            user_id=current_user.id,
+            focus=req.focus or "comprehensive",
+        )
+    except ValueError as ve:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Comparative synthesis failed: {e}",
+        )
 

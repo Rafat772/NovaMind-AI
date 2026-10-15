@@ -187,3 +187,51 @@ async def authenticate_or_register_google_user(credential: str) -> dict:
     result = await db.users.insert_one(new_user)
     new_user["_id"] = result.inserted_id
     return new_user
+
+
+async def update_user_profile(
+    user_id: str,
+    full_name: Optional[str] = None,
+    avatar_url: Optional[str] = None,
+) -> dict:
+    from bson import ObjectId
+
+    update_data = {}
+    if full_name:
+        update_data["full_name"] = full_name.strip()
+    if avatar_url:
+        update_data["avatar_url"] = avatar_url
+
+    if update_data:
+        await db.users.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$set": update_data},
+        )
+
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    return user
+
+
+async def change_user_password(
+    user_id: str,
+    current_password: str,
+    new_password: str,
+) -> bool:
+    from bson import ObjectId
+
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise ValueError("User account could not be found.")
+
+    if not user.get("hashed_password"):
+        raise ValueError("Accounts created via Google OAuth do not have a local password.")
+
+    if not verify_password(current_password, user["hashed_password"]):
+        raise ValueError("Incorrect current password.")
+
+    new_hash = hash_password(new_password)
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"hashed_password": new_hash}},
+    )
+    return True
