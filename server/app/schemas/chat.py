@@ -43,3 +43,15 @@ class SendMessageResponse(BaseModel):
     session_id: str
     user_message: ChatMessage
     assistant_message: ChatMessage
+
+
+class TranslationRequest(BaseModel):
+    text: str = Field(..., min_length=1)
+    target_language: str = Field(..., min_length=2, max_length=50)
+
+
+class TranslationResponse(BaseModel):
+    original_text: str
+    target_language: str
+    translated_text: str
+

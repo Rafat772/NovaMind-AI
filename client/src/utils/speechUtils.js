@@ -30,7 +30,7 @@ export const cleanMarkdownForSpeech = (markdown) => {
     .trim();
 };
 
-export const speakText = (text, { onStart, onEnd, onError }) => {
+export const speakText = (text, { onStart, onEnd, onError, lang = "en-US" } = {}) => {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) {
     alert("Speech Synthesis is not supported in this browser.");
     return false;
@@ -45,16 +45,18 @@ export const speakText = (text, { onStart, onEnd, onError }) => {
   const utterance = new SpeechSynthesisUtterance(cleanText);
   utterance.rate = 1.0;
   utterance.pitch = 1.0;
-  utterance.lang = "en-US";
+  utterance.lang = lang;
 
-  // Pick best available English voice
+  // Pick best available voice for requested language
   const voices = window.speechSynthesis.getVoices();
-  const naturalVoice = voices.find(
-    (v) => v.lang.startsWith("en") && (v.name.includes("Natural") || v.name.includes("Google") || v.name.includes("Samantha"))
-  ) || voices.find((v) => v.lang.startsWith("en"));
+  const langPrefix = lang.split("-")[0].toLowerCase();
+  const localizedVoice = voices.find(
+    (v) => v.lang.toLowerCase().startsWith(langPrefix) && (v.name.includes("Natural") || v.name.includes("Google") || v.name.includes("Samantha"))
+  ) || voices.find((v) => v.lang.toLowerCase().startsWith(langPrefix))
+    || voices.find((v) => v.lang.startsWith("en"));
 
-  if (naturalVoice) {
-    utterance.voice = naturalVoice;
+  if (localizedVoice) {
+    utterance.voice = localizedVoice;
   }
 
   utterance.onstart = () => {

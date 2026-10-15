@@ -56,6 +56,21 @@ export const chatService = {
     const response = await api.delete(`/chat/sessions/${sessionId}`);
     return response.data;
   },
+
+  /**
+   * Translates research text into a target language using Gemini.
+   * @param {Object} payload
+   * @param {string} payload.text
+   * @param {string} payload.target_language
+   * @returns {Promise<Object>} { original_text, target_language, translated_text }
+   */
+  async translateMessage({ text, target_language }) {
+    const response = await api.post("/chat/translate", {
+      text,
+      target_language,
+    });
+    return response.data;
+  },
 };
 
 export default chatService;

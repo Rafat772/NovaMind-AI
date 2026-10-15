@@ -255,3 +255,50 @@ async def send_chat_message(
         "user_message": format_message_response(user_msg_doc),
         "assistant_message": format_message_response(assistant_msg_doc),
     }
+
+
+def translate_research_text(text: str, target_language: str) -> str:
+    """
+    Translates research output into the requested target language using Google Gemini,
+    preserving formatting, citation tags [Source: ...], and technical terminologies.
+    """
+    if not text or not target_language:
+        return text
+
+    client = get_gemini_client()
+    if not client:
+        return text
+
+    prompt = f"""You are NovaMind AI Translation Engine.
+Translate the following academic research synthesis into {target_language}.
+
+Rules:
+1. Maintain the exact GitHub Markdown structure (headings, tables, bold text, bullet points).
+2. DO NOT alter citation markers like [Source: filename, Page X] or document titles.
+3. Keep technical programming terms (e.g. FastAPI, React, PyTorch, MongoDB, RAG, Python, SGPA) standard.
+4. Provide a fluent, natural, and academically rigorous translation in {target_language}.
+
+Text to translate:
+{text}
+"""
+
+    for model_name in [
+        "gemini-flash-lite-latest",
+        "gemini-3.1-flash-lite",
+        "gemini-3.8-flash",
+        "gemini-3.5-flash",
+        "gemini-flash-latest",
+    ]:
+        try:
+            resp = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+            )
+            if resp and resp.text:
+                return resp.text.strip()
+        except Exception as e:
+            logger.warning(f"Translation model {model_name} failed: {e}")
+            continue
+
+    return text
+

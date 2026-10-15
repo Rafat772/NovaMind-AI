@@ -1,92 +1,72 @@
-import { useState, useEffect } from "react";
-import { Sparkles, User, FileText, ChevronDown, ChevronUp, Copy, Check, Volume2, VolumeX } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import {
+  Sparkles,
+  User,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Check,
+  Volume2,
+  VolumeX,
+  Languages,
+  Loader2,
+  RotateCcw,
+  Globe,
+} from "lucide-react";
 import { speakText, stopSpeech } from "../../utils/speechUtils";
 import MarkdownRenderer from "../common/MarkdownRenderer";
+import chatService from "../../services/chatService";
 
-function renderFormattedContent(text) {
-  if (!text) return null;
-
-  // Split lines
-  const lines = text.split("\n");
-  const elements = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // Headings ###
-    if (line.startsWith("### ")) {
-      elements.push(
-        <h4 key={i} className="text-base font-bold text-white mt-3 mb-1.5 flex items-center gap-2">
-          <span>{line.replace("### ", "")}</span>
-        </h4>
-      );
-      continue;
-    }
-    if (line.startsWith("## ")) {
-      elements.push(
-        <h3 key={i} className="text-lg font-bold text-purple-300 mt-4 mb-2">
-          {line.replace("## ", "")}
-        </h3>
-      );
-      continue;
-    }
-
-    // Blockquote
-    if (line.startsWith("> ")) {
-      elements.push(
-        <blockquote key={i} className="border-l-2 border-purple-500 pl-3 my-2 text-gray-300 italic text-xs sm:text-sm bg-[#161622]/40 py-1 rounded-r-lg">
-          {line.replace("> ", "")}
-        </blockquote>
-      );
-      continue;
-    }
-
-    // Bullet points
-    if (line.startsWith("* ") || line.startsWith("- ")) {
-      const clean = line.substring(2);
-      elements.push(
-        <li key={i} className="text-gray-200 text-sm list-disc ml-5 my-1 leading-relaxed">
-          {formatInlineBold(clean)}
-        </li>
-      );
-      continue;
-    }
-
-    // Normal line
-    if (line.trim() === "") {
-      elements.push(<div key={i} className="h-2" />);
-    } else {
-      elements.push(
-        <p key={i} className="text-sm text-gray-200 leading-relaxed my-1">
-          {formatInlineBold(line)}
-        </p>
-      );
-    }
-  }
-
-  return elements;
-}
-
-function formatInlineBold(str) {
-  const parts = str.split(/(\*\*.*?\*\*)/g);
-  return parts.map((part, index) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return (
-        <strong key={index} className="text-white font-semibold">
-          {part.slice(2, -2)}
-        </strong>
-      );
-    }
-    return part;
-  });
-}
+const SUPPORTED_LANGUAGES = [
+  { code: "hi-IN", name: "Hindi", native: "हिन्दी", flag: "🇮🇳" },
+  { code: "ur-PK", name: "Urdu", native: "اردو", flag: "🇵🇰" },
+  { code: "es-ES", name: "Spanish", native: "Español", flag: "🇪🇸" },
+  { code: "fr-FR", name: "French", native: "Français", flag: "🇫🇷" },
+  { code: "de-DE", name: "German", native: "Deutsch", flag: "🇩🇪" },
+  { code: "ar-SA", name: "Arabic", native: "العربية", flag: "🇸🇦" },
+  { code: "ja-JP", name: "Japanese", native: "日本語", flag: "🇯🇵" },
+  { code: "zh-CN", name: "Chinese", native: "中文", flag: "🇨🇳" },
+  { code: "ru-RU", name: "Russian", native: "Русский", flag: "🇷🇺" },
+  { code: "pt-BR", name: "Portuguese", native: "Português", flag: "🇧🇷" },
+];
 
 function ChatMessage({ role, message, content, citations = [] }) {
   const isUser = role === "user";
   const textContent = content || message || "";
+
   const [showCitations, setShowCitations] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  // Multi-Language Translation State
+  const [translations, setTranslations] = useState({});
+  const [activeLang, setActiveLang] = useState(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [showLangMenu, setShowLangMenu] = useState(false);
+  const [translationError, setTranslationError] = useState(null);
+
+  const langMenuRef = useRef(null);
+
+  // Text currently being displayed (original vs translated)
+  const displayedText = activeLang && translations[activeLang.name]
+    ? translations[activeLang.name]
+    : textContent;
+
+  // Close language menu on outside click
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (langMenuRef.current && !langMenuRef.current.contains(event.target)) {
+        setShowLangMenu(false);
+      }
+    }
+    if (showLangMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showLangMenu]);
 
   // Stop speech if message unmounts
   useEffect(() => {
@@ -96,7 +76,7 @@ function ChatMessage({ role, message, content, citations = [] }) {
   }, [isPlaying]);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(textContent);
+    navigator.clipboard.writeText(displayedText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -106,7 +86,8 @@ function ChatMessage({ role, message, content, citations = [] }) {
       stopSpeech();
       setIsPlaying(false);
     } else {
-      speakText(textContent, {
+      speakText(displayedText, {
+        lang: activeLang ? activeLang.code : "en-US",
         onStart: () => setIsPlaying(true),
         onEnd: () => setIsPlaying(false),
         onError: () => setIsPlaying(false),
@@ -114,9 +95,52 @@ function ChatMessage({ role, message, content, citations = [] }) {
     }
   };
 
+  const handleSelectLanguage = async (lang) => {
+    setShowLangMenu(false);
+    setTranslationError(null);
+
+    // If cached in state, switch instantly
+    if (translations[lang.name]) {
+      setActiveLang(lang);
+      if (isPlaying) stopSpeech();
+      return;
+    }
+
+    try {
+      setIsTranslating(true);
+      const res = await chatService.translateMessage({
+        text: textContent,
+        target_language: lang.name,
+      });
+
+      if (res && res.translated_text) {
+        setTranslations((prev) => ({
+          ...prev,
+          [lang.name]: res.translated_text,
+        }));
+        setActiveLang(lang);
+        if (isPlaying) stopSpeech();
+      }
+    } catch (err) {
+      console.error("Translation failed:", err);
+      setTranslationError("Translation failed. Please try again.");
+      setTimeout(() => setTranslationError(null), 3500);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const handleResetOriginal = () => {
+    setActiveLang(null);
+    if (isPlaying) stopSpeech();
+  };
+
   return (
-    <div className={`flex gap-3 mb-6 animate-in fade-in ${isUser ? "justify-end" : "justify-start"}`}>
-      
+    <div
+      className={`flex gap-3 mb-6 animate-in fade-in ${
+        isUser ? "justify-end" : "justify-start"
+      }`}
+    >
       {/* Assistant Avatar */}
       {!isUser && (
         <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-fuchsia-600 flex items-center justify-center shrink-0 shadow-lg shadow-purple-600/30 text-white mt-0.5">
@@ -125,8 +149,11 @@ function ChatMessage({ role, message, content, citations = [] }) {
       )}
 
       {/* Message Container */}
-      <div className={`max-w-2xl sm:max-w-3xl flex flex-col ${isUser ? "items-end" : "items-start"}`}>
-        
+      <div
+        className={`max-w-2xl sm:max-w-3xl flex flex-col ${
+          isUser ? "items-end" : "items-start"
+        }`}
+      >
         <div
           className={`px-5 py-4 rounded-3xl transition-all duration-200 ${
             isUser
@@ -134,10 +161,39 @@ function ChatMessage({ role, message, content, citations = [] }) {
               : "bg-[#14141E] text-gray-200 rounded-tl-sm border border-[#2D2D38] shadow-xl w-full"
           }`}
         >
+          {/* Active Translation Indicator Bar */}
+          {!isUser && activeLang && (
+            <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-[#252535] text-xs">
+              <div className="flex items-center gap-2 text-purple-300 font-medium">
+                <Globe size={13} className="text-purple-400" />
+                <span>
+                  Translated to {activeLang.flag} {activeLang.name} ({activeLang.native})
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleResetOriginal}
+                className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 hover:text-white px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+                title="Return to original English text"
+              >
+                <RotateCcw size={11} />
+                <span>Original</span>
+              </button>
+            </div>
+          )}
+
+          {/* Translation Error alert */}
+          {!isUser && translationError && (
+            <div className="mb-3 px-3 py-1.5 rounded-lg bg-red-950/60 border border-red-800/60 text-red-300 text-xs">
+              {translationError}
+            </div>
+          )}
+
+          {/* Content */}
           {isUser ? (
             <p className="whitespace-pre-wrap">{textContent}</p>
           ) : (
-            <MarkdownRenderer content={textContent} />
+            <MarkdownRenderer content={displayedText} />
           )}
 
           {/* Citations section for Assistant */}
@@ -150,7 +206,8 @@ function ChatMessage({ role, message, content, citations = [] }) {
               >
                 <FileText size={14} />
                 <span>
-                  {citations.length} Grounded Research Source{citations.length > 1 ? "s" : ""}
+                  {citations.length} Grounded Research Source
+                  {citations.length > 1 ? "s" : ""}
                 </span>
                 {showCitations ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </button>
@@ -186,17 +243,17 @@ function ChatMessage({ role, message, content, citations = [] }) {
               )}
             </div>
           )}
-
         </div>
 
         {/* Actions row below assistant message */}
         {!isUser && (
-          <div className="flex items-center gap-3 mt-1.5 ml-2 text-xs text-gray-500">
+          <div className="relative flex items-center gap-3 mt-1.5 ml-2 text-xs text-gray-500">
             {/* Copy button */}
             <button
               type="button"
               onClick={handleCopy}
               className="flex items-center gap-1 hover:text-purple-400 transition-colors cursor-pointer"
+              title="Copy response to clipboard"
             >
               {copied ? (
                 <>
@@ -242,9 +299,93 @@ function ChatMessage({ role, message, content, citations = [] }) {
                 </>
               )}
             </button>
+
+            <span className="text-gray-700">•</span>
+
+            {/* Translate Button & Menu Container */}
+            <div className="relative" ref={langMenuRef}>
+              <button
+                type="button"
+                onClick={() => setShowLangMenu((prev) => !prev)}
+                disabled={isTranslating}
+                title="Translate response into multiple languages"
+                className={`flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  activeLang
+                    ? "text-purple-400 font-medium"
+                    : "hover:text-purple-400"
+                }`}
+              >
+                {isTranslating ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin text-purple-400" />
+                    <span className="text-purple-300">Translating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Languages size={13} />
+                    <span>
+                      {activeLang ? `${activeLang.flag} ${activeLang.name}` : "Translate"}
+                    </span>
+                    <ChevronDown size={11} className={`transition-transform duration-150 ${showLangMenu ? "rotate-180" : ""}`} />
+                  </>
+                )}
+              </button>
+
+              {/* Translation Dropdown Menu */}
+              {showLangMenu && (
+                <div className="absolute left-0 bottom-full mb-2 z-50 w-56 rounded-2xl bg-[#12121B] border border-[#2B2B3C] shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl">
+                  <div className="px-2.5 py-1.5 mb-1 border-b border-[#222232] flex items-center justify-between text-[11px] text-gray-400 font-semibold">
+                    <span>Translate Response</span>
+                    <Globe size={12} className="text-purple-400" />
+                  </div>
+
+                  {/* Reset to English item if currently translated */}
+                  {activeLang && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleResetOriginal();
+                        setShowLangMenu(false);
+                      }}
+                      className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs text-purple-300 hover:bg-purple-600/15 transition-colors cursor-pointer mb-1"
+                    >
+                      <span className="flex items-center gap-2">
+                        <RotateCcw size={12} />
+                        Original English
+                      </span>
+                    </button>
+                  )}
+
+                  <div className="max-h-60 overflow-y-auto space-y-0.5 custom-scrollbar">
+                    {SUPPORTED_LANGUAGES.map((lang) => {
+                      const isSelected = activeLang?.name === lang.name;
+                      return (
+                        <button
+                          key={lang.code}
+                          type="button"
+                          onClick={() => handleSelectLanguage(lang)}
+                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                            isSelected
+                              ? "bg-purple-600/20 text-purple-300 font-semibold border border-purple-500/30"
+                              : "text-gray-300 hover:bg-white/5 hover:text-white"
+                          }`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <span>{lang.flag}</span>
+                            <span>{lang.name}</span>
+                          </span>
+                          <span className="text-[11px] text-gray-500 font-mono">
+                            {lang.native}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
-
       </div>
 
       {/* User Avatar */}
@@ -253,7 +394,6 @@ function ChatMessage({ role, message, content, citations = [] }) {
           <User size={18} />
         </div>
       )}
-
     </div>
   );
 }

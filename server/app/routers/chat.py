@@ -9,6 +9,8 @@ from app.schemas.chat import (
     ChatSessionResponse,
     SendMessageRequest,
     SendMessageResponse,
+    TranslationRequest,
+    TranslationResponse,
 )
 from app.services.chat_service import (
     create_chat_session,
@@ -16,6 +18,7 @@ from app.services.chat_service import (
     get_session_messages,
     delete_chat_session,
     send_chat_message,
+    translate_research_text,
 )
 
 router = APIRouter(
@@ -89,3 +92,26 @@ async def delete_session(
             detail="Session not found or already deleted.",
         )
     return {"success": True, "message": "Chat session deleted.", "id": session_id}
+
+
+@router.post("/translate", response_model=TranslationResponse)
+async def translate_text_endpoint(
+    payload: TranslationRequest,
+    current_user: UserResponse = Depends(get_current_user),
+):
+    """
+    Translates research output into the target language using Gemini.
+    """
+    try:
+        translated = translate_research_text(payload.text, payload.target_language)
+        return TranslationResponse(
+            original_text=payload.text,
+            target_language=payload.target_language,
+            translated_text=translated,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Translation failed: {str(e)}",
+        )
+
