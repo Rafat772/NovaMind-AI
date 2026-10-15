@@ -20,83 +20,93 @@ function ChatInput({
   const [isListening, setIsListening] = useState(false);
   const textareaRef = useRef(null);
   const recognitionRef = useRef(null);
+  const baseTextRef = useRef("");
 
-  // Initialize Speech Recognition
+  // Clean up recognition on unmount
   useEffect(() => {
-    const recognition = getSpeechRecognition();
-    if (recognition) {
-      // Disabling interimResults prevents duplicate partial text phrases from appending
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = "en-US";
-
-      recognition.onresult = (event) => {
-        let transcript = "";
-        for (let i = 0; i < event.results.length; i++) {
-          if (event.results[i].isFinal) {
-            transcript += event.results[i][0].transcript;
-          }
-        }
-        if (transcript.trim()) {
-          setText((prev) => {
-            const cleanPrev = prev.trim();
-            const separator = cleanPrev ? " " : "";
-            const newText = cleanPrev + separator + transcript.trim();
-            // Auto adjust textarea height
-            setTimeout(() => {
-              if (textareaRef.current) {
-                textareaRef.current.style.height = "auto";
-                textareaRef.current.style.height = `${Math.min(
-                  textareaRef.current.scrollHeight,
-                  120
-                )}px`;
-              }
-            }, 50);
-            return newText;
-          });
-        }
-      };
-
-      recognition.onerror = (e) => {
-        console.warn("Speech recognition error:", e);
-        setIsListening(false);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognitionRef.current = recognition;
-    }
-
     return () => {
       if (recognitionRef.current) {
         try {
-          recognitionRef.current.stop();
+          recognitionRef.current.abort();
         } catch (e) {}
       }
     };
   }, []);
 
   const toggleListening = () => {
-    if (!recognitionRef.current) {
+    if (isListening) {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {}
+      }
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
       alert("Speech recognition is not supported in this browser. Please use Google Chrome or Edge.");
       return;
     }
 
-    if (isListening) {
+    // Abort any lingering instance
+    if (recognitionRef.current) {
       try {
-        recognitionRef.current.stop();
+        recognitionRef.current.abort();
       } catch (e) {}
-      setIsListening(false);
-    } else {
-      try {
-        recognitionRef.current.start();
-        setIsListening(true);
-      } catch (err) {
-        console.warn("Recognition start error:", err);
-        setIsListening(false);
+    }
+
+    // Snapshot existing text before starting dictation
+    baseTextRef.current = text.trim();
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event) => {
+      let cumulativeTranscript = "";
+      for (let i = 0; i < event.results.length; i++) {
+        cumulativeTranscript += event.results[i][0].transcript;
       }
+
+      // Replace text cleanly with baseText + cumulative transcript (NO duplicates!)
+      const prefix = baseTextRef.current ? baseTextRef.current + " " : "";
+      const updatedText = prefix + cumulativeTranscript.trim();
+      setText(updatedText);
+
+      // Auto-adjust textarea height
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+        textareaRef.current.style.height = `${Math.min(
+          textareaRef.current.scrollHeight,
+          120
+        )}px`;
+      }
+    };
+
+    recognition.onerror = (e) => {
+      console.warn("Speech recognition error:", e);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+
+    try {
+      recognition.start();
+    } catch (err) {
+      console.warn("Speech recognition start failed:", err);
+      setIsListening(false);
     }
   };
 
