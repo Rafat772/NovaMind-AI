@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, Download, Copy, Check, FileText, Sparkles, BookOpen, Layers } from "lucide-react";
 import reportService from "../../services/reportService";
+import MarkdownRenderer from "../common/MarkdownRenderer";
 
 function ReportModal({ report, onClose }) {
   const [copied, setCopied] = useState(false);
@@ -72,8 +73,8 @@ function ReportModal({ report, onClose }) {
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-4">
-          <div className="p-6 rounded-2xl bg-[#161622] border border-[#262636] font-mono text-xs sm:text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">
-            {report.summary_markdown}
+          <div className="p-6 rounded-2xl bg-[#161622] border border-[#262636]">
+            <MarkdownRenderer content={report.summary_markdown} />
           </div>
         </div>
 

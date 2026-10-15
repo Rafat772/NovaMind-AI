@@ -14,6 +14,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import documentService from "../../services/documentService";
+import MarkdownRenderer from "../common/MarkdownRenderer";
 
 const FOCUS_OPTIONS = [
   { id: "comprehensive", label: "Comprehensive Analysis", desc: "Full synthesis across arguments and structures" },
@@ -330,9 +331,9 @@ const DocumentCompareModal = ({ isOpen, onClose, documents = [] }) => {
                 </div>
               </div>
 
-              {/* Markdown Display Box */}
-              <div className="p-6 rounded-2xl bg-[#0B0B12] border border-[#232332] text-sm text-gray-200 leading-relaxed font-sans max-h-[50vh] overflow-y-auto whitespace-pre-wrap selection:bg-purple-600/30">
-                {result.comparison_markdown}
+              {/* Rich Formatted Markdown Display */}
+              <div className="p-6 rounded-2xl bg-[#0B0B12] border border-[#232332] max-h-[60vh] overflow-y-auto selection:bg-purple-600/30">
+                <MarkdownRenderer content={result.comparison_markdown} />
               </div>
 
             </div>

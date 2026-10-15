@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Sparkles, User, FileText, ChevronDown, ChevronUp, Copy, Check, Volume2, VolumeX } from "lucide-react";
 import { speakText, stopSpeech } from "../../utils/speechUtils";
+import MarkdownRenderer from "../common/MarkdownRenderer";
 
 function renderFormattedContent(text) {
   if (!text) return null;
@@ -136,7 +137,7 @@ function ChatMessage({ role, message, content, citations = [] }) {
           {isUser ? (
             <p className="whitespace-pre-wrap">{textContent}</p>
           ) : (
-            <div>{renderFormattedContent(textContent)}</div>
+            <MarkdownRenderer content={textContent} />
           )}
 
           {/* Citations section for Assistant */}
