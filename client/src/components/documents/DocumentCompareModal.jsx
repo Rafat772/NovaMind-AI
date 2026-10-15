@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   X,
   Scale,
@@ -23,22 +23,45 @@ const FOCUS_OPTIONS = [
 ];
 
 const DocumentCompareModal = ({ isOpen, onClose, documents = [] }) => {
-  const [docAId, setDocAId] = useState(documents[0]?.id || "");
-  const [docBId, setDocBId] = useState(documents[1]?.id || documents[0]?.id || "");
+  const [docAId, setDocAId] = useState("");
+  const [docBId, setDocBId] = useState("");
   const [focus, setFocus] = useState("comprehensive");
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
 
+  // Synchronize document selections when modal opens or documents change
+  useEffect(() => {
+    if (isOpen && documents && documents.length > 0) {
+      const validA = documents.some((d) => d.id === docAId);
+      const validB = documents.some((d) => d.id === docBId);
+
+      const targetA = validA ? docAId : documents[0].id;
+      const targetB =
+        validB && docBId !== targetA
+          ? docBId
+          : documents.length > 1
+          ? documents[1].id
+          : documents[0].id;
+
+      setDocAId(targetA);
+      setDocBId(targetB);
+      setError("");
+    }
+  }, [isOpen, documents]);
+
   if (!isOpen) return null;
 
   const handleCompare = async () => {
-    if (!docAId || !docBId) {
+    const targetA = docAId || documents[0]?.id;
+    const targetB = docBId || documents[1]?.id;
+
+    if (!targetA || !targetB) {
       setError("Please select both documents to compare.");
       return;
     }
-    if (docAId === docBId) {
+    if (targetA === targetB) {
       setError("Please choose two different documents for comparative synthesis.");
       return;
     }
@@ -49,8 +72,8 @@ const DocumentCompareModal = ({ isOpen, onClose, documents = [] }) => {
 
     try {
       const data = await documentService.compareDocuments({
-        document_id_a: docAId,
-        document_id_b: docBId,
+        document_id_a: targetA,
+        document_id_b: targetB,
         focus,
       });
       setResult(data);
